@@ -47,7 +47,7 @@ P = 0.5
 pv = [0.5, 0.4, 0.09, 0.01]#probability one becomes asymptomatic, mild, severe, critical
 infection_risk_factor = 0.5
 mu = 0.1 # coefficient for wastewater risk
-days_to_close_wastewater = 90
+days_to_close_wastewater = 0
 
 print('Number of days', Ndays)
 
@@ -365,7 +365,6 @@ for i in range(num_sim_iters):#iteration loop (i iters (units are hrs))
 
     if OutVerbosity > -1:
         print("Outer loop", i)
-        time.sleep(1)
 
     #change agents location according to transition matrix
     num_agents_moved = 0
@@ -381,7 +380,7 @@ for i in range(num_sim_iters):#iteration loop (i iters (units are hrs))
                 print("Old Loc / agent",locs3[Oldnloc],j)
                 print("New Loc / agent",locs3[agents3[j].nloc],j)
             #update risk status of building after agents have moved
-            if agents3[j].infected == 'True':
+            if agents3[j].infected == 'True' and agents3[j].shedding == 'True':
                 loc = agents3[j].nloc
                 RiskStatus[i+1,loc] = RiskStatus[i+1,loc]+1
     print("number of agents moved: %d" % num_agents_moved)
@@ -431,7 +430,10 @@ for i in range(num_sim_iters):#iteration loop (i iters (units are hrs))
                    #agents3[j].infected = 'True'
                    #agents3[j].immune = 'True'
                    agents3[j].symptoms = 'False'
-    
+        if agents3[j].infected == 'True' and agents3[j].shedding == 'False': # you are in incubation period
+            if agents3[j].days_sick > np.random.poisson(5*24): # you become shedding
+                agents3[j].shedding = 'True'
+                print('New agent become shedding')
     
     # force 1-3 agents living off-camputs(UNKNOWN) get infected at the end of weekend, assume we start from Monday
     if i>0 and i%(7*24) == 0:
@@ -465,6 +467,8 @@ for i in range(num_sim_iters):#iteration loop (i iters (units are hrs))
     frac_infected = 0#just resetting running sums
     num_isolated = 0
     frac_isolated = 0
+    num_shedding_no_iso = 0
+    frac_shed_no_iso = 0
     for j in range(num_agents):#loop over all agents
         #if OutVerbosity > 0:
         #    print("agent index and location:",j, agents3[j].nloc)
@@ -474,6 +478,7 @@ for i in range(num_sim_iters):#iteration loop (i iters (units are hrs))
                 agents3[j].immune = 'True'
                 agents3[j].symptoms = 'False'
                 agents3[j].infected = 'False'
+                agents3[j].shedding = 'False'
                 #HealthStatus[i,j] = 0#reset health status to healthy
                 agents3[j].isolated = 'False'#remove from isolation!
                 #agents3[j].nloc = location_dictionary[agents3[j].residence][0]# now start from your residence
@@ -492,19 +497,24 @@ for i in range(num_sim_iters):#iteration loop (i iters (units are hrs))
                 agents3[j].immune = 'True'
                 agents3[j].symptoms = 'False'
                 agents3[j].infected = 'False'
+                agents3[j].shedding = 'False'
                 agents3[j].nloc = location_dictionary[agents3[j].residence][0]# now start from your residence
                 locs3[agents3[j].nloc].agentlist.append(j)
             else:
                 HealthStatus[i,j] = 1
                 num_isolated += 1
                 frac_isolated = float(num_isolated)/float(num_agents)
+        elif agents3[j].shedding == 'True': # not quarantined but infectious (most dangerous)
+            num_shedding_no_iso += 1
+            frac_shed_no_iso = float(num_shedding_no_iso)/float(num_agents)
         LocationStatus[i,j] = agents3[j].nloc#location of agent j at time i
 
     #vec[i+1] = frac_infected
     vec[i+1] = frac_infected + frac_isolated
     vecQuarantine[i+1] = frac_isolated
-    print("Fraction infected %.5f"% frac_infected)
-    print("Fraction isolated %.5f"% frac_isolated)
+    print("Fraction infected %.4f"% frac_infected)
+    print("Fraction isolated %.4f"% frac_isolated)
+    print('Fraction infectiours(not quarantined) %.4f'% frac_shed_no_iso)
     print("Fraction total %.5f"% (frac_infected + frac_isolated))
 
 
