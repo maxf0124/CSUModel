@@ -45,7 +45,7 @@ gamma=0.33
 beta = R0*gamma
 P = 0.5
 pv = [0.5, 0.4, 0.09, 0.01]#probability one becomes asymptomatic, mild, severe, critical
-infection_risk_factor = 0.5
+infection_risk_factor = 0.8
 mu = 0.1 # coefficient for wastewater risk
 days_to_close_wastewater = 0
 
