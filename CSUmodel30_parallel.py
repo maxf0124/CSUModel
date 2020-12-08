@@ -389,12 +389,12 @@ for i in range(num_sim_iters):#iteration loop (i iters (units are hrs))
     for j in range(num_agents):
         if agents3[j].isolated=='False':
             locs3[agents3[j].nloc].agentlist.append(j)
-        if OutVerbosity > 0:
-            print("New Loc / agent",locs3[agents3[j].nloc],j)
-        #update risk status of building after agents have moved
-        if agents3[j].infected == 'True' and agents3[j].isolated == 'False':
-            loc = agents3[j].nloc
-            RiskStatus[i+1,loc] = RiskStatus[i+1,loc]+1
+            if OutVerbosity > 0:
+                print("New Loc / agent",locs3[agents3[j].nloc],j)
+            #update risk status of building after agents have moved
+            if agents3[j].infected == 'True' and agents3[j].shedding == 'True':
+                loc = agents3[j].nloc
+                RiskStatus[i+1,loc] = RiskStatus[i+1,loc]+1
     #update building population and risk_value
     for m in range(num_loc): #loop over the locations
         locs3[m].pop = len(locs3[m].agentlist) #number of agents in this loc
@@ -417,14 +417,14 @@ for i in range(num_sim_iters):#iteration loop (i iters (units are hrs))
                ww_risk = min(0.8,ww_risk)
            else:
                ww_risk = 0
-           xx = (Frisk+ min([risk,1])*Brisk + mu*ww_risk)*infection_risk_factor
+           xx = Frisk+ min([risk,1])*Brisk + mu*ww_risk
            #xx = 0.005+min([risk*0.001,1])#risk value is number of shedders in location loc
            #xx = alpha*np.random.poisson(beta*risk)
            #print('infection risk',i,j,xx)
            #print("Location",loc, locs3[loc].LocationName, "Risk", risk, "Probabity of infection",xx)
            #time.sleep(.2)
            #if (xx>np.random.uniform(.01,.9)):#you are sick now
-           if (xx>np.random.uniform(Frisk*infection_risk_factor,1)):
+           if (xx>np.random.uniform(Frisk,1)):
                agents3[j].infected = 'True'#this subject is infected now
                new_infections += 1
                y = random.randint(0,9)
@@ -441,7 +441,10 @@ for i in range(num_sim_iters):#iteration loop (i iters (units are hrs))
                    #agents3[j].infected = 'True'
                    #agents3[j].immune = 'True'
                    agents3[j].symptoms = 'False'
-    
+        if agents3[j].infected == 'True' and agents3[j].shedding == 'False': # you are in incubation period
+            if agents3[j].days_sick > np.random.poisson(5*24): # you become shedding
+                agents3[j].shedding = 'True'
+                print('New agent become shedding')    
     
     # force 1-3 agents living off-camputs(UNKNOWN) get infected at the end of weekend, assume we start from Monday
     if i>0 and i%(7*24) == 0:
@@ -475,6 +478,8 @@ for i in range(num_sim_iters):#iteration loop (i iters (units are hrs))
     frac_infected = 0#just resetting running sums
     num_isolated = 0
     frac_isolated = 0
+    num_shedding_no_iso = 0
+    frac_shed_no_iso = 0
     for j in range(num_agents):#loop over all agents
         #if OutVerbosity > 0:
         #    print("agent index and location:",j, agents3[j].nloc)
@@ -502,12 +507,16 @@ for i in range(num_sim_iters):#iteration loop (i iters (units are hrs))
                 agents3[j].immune = 'True'
                 agents3[j].symptoms = 'False'
                 agents3[j].infected = 'False'
+                agents3[j].shedding = 'False'
                 agents3[j].nloc = location_dictionary[agents3[j].residence][0]# now start from your residence
                 locs3[agents3[j].nloc].agentlist.append(j)
             else:
                 HealthStatus[i,j] = 1
                 num_isolated += 1
                 frac_isolated = float(num_isolated)/float(num_agents)
+        elif agents3[j].shedding == 'True': # not quarantined but infectious (most dangerous)
+            num_shedding_no_iso += 1
+            frac_shed_no_iso = float(num_shedding_no_iso)/float(num_agents)
         LocationStatus[i,j] = agents3[j].nloc#location of agent j at time i
 
     #vec[i+1] = frac_infected
@@ -516,6 +525,7 @@ for i in range(num_sim_iters):#iteration loop (i iters (units are hrs))
     print("Fraction infected %.5f"% frac_infected)
     print("Fraction isolated %.5f"% frac_isolated)
     print("Fraction total %.5f"% (frac_infected + frac_isolated))
+    print('Fraction infectious(not quarantined) %.4f'% frac_shed_no_iso)
     t1 = time.time()
     print('This iteration cost(seconds)', (t1-t0))
 
